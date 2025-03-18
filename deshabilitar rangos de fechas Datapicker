@@ -1,0 +1,184 @@
+1. Deshabilitar una fecha específica
+Para deshabilitar una fecha en PrimeVue DatePicker, usamos la propiedad disabledDates.
+
+✅ Ejemplo - Deshabilitar una fecha específica
+vue
+Copiar
+Editar
+<template>
+  <DatePicker v-model="date" inline :disabledDates="disabledDates" />
+</template>
+
+<script setup>
+import { ref } from "vue";
+
+const date = ref(null);
+const disabledDates = ref([
+  new Date(2025, 3, 15) // 15 de abril de 2025 (mes - 1 porque en JS los meses van de 0 a 11)
+]);
+</script>
+🔹 Explicación:
+
+La fecha "2025-04-15" se convierte en new Date(2025, 3, 15), ya que en JavaScript abril es el mes 3.
+disabledDates recibe un array de fechas deshabilitadas.
+📌 2. Convertir fechas de una API para deshabilitarlas
+Si las fechas vienen de una API en formato "YYYY-MM-DD", necesitamos convertirlas correctamente.
+
+✅ Ejemplo - Convertir fechas de API
+js
+Copiar
+Editar
+const rawDates = ["2025-04-15", "2025-04-20"]; // Fechas de API
+
+const disabledDates = ref(rawDates.map(fecha => {
+  const parts = fecha.split("-"); // ["2025", "04", "15"]
+  return new Date(parts[0], parts[1] - 1, parts[2]); // Convertir correctamente
+}));
+🔹 Explicación:
+
+Dividimos la fecha "YYYY-MM-DD" en un array (split("-")).
+Restamos 1 al mes porque JavaScript usa meses de 0-11.
+Convertimos a Date para que DatePicker lo entienda.
+📌 3. Deshabilitar un rango de fechas
+Si queremos deshabilitar un intervalo de fechas, recorremos desde fecha_entrada hasta fecha_salida.
+
+✅ Ejemplo - Deshabilitar un rango de fechas
+vue
+Copiar
+Editar
+<template>
+  <DatePicker v-model="date" inline :disabledDates="disabledDates" />
+</template>
+
+<script setup>
+import { ref, onMounted } from "vue";
+
+const date = ref(null);
+const disabledDates = ref([]);
+
+// Simulación de datos de la API
+const calendarReserved = [
+  { fecha_entrada: "2025-04-10", fecha_salida: "2025-04-15" },
+  { fecha_entrada: "2025-04-20", fecha_salida: "2025-04-25" }
+];
+
+const generateDisabledDates = () => {
+  let allDisabledDates = [];
+
+  calendarReserved.forEach(reservation => {
+    let startDate = new Date(Date.UTC(
+      ...reservation.fecha_entrada.split("-").map((v, i) => (i === 1 ? v - 1 : v))
+    ));
+
+    let endDate = new Date(Date.UTC(
+      ...reservation.fecha_salida.split("-").map((v, i) => (i === 1 ? v - 1 : v))
+    ));
+
+    while (startDate <= endDate) {
+      allDisabledDates.push(new Date(startDate)); // Guardamos la fecha
+      startDate.setDate(startDate.getDate() + 1); // Avanzamos un día
+    }
+  });
+
+  disabledDates.value = allDisabledDates;
+};
+
+// Llamamos a la función al montar el componente
+onMounted(generateDisabledDates);
+</script>
+🔹 Explicación:
+
+Convertimos fecha_entrada y fecha_salida a fechas válidas en JS usando Date.UTC().
+Recorremos cada día en el rango (while (startDate <= endDate)) y los agregamos a disabledDates.
+Al usar onMounted(), generamos las fechas deshabilitadas al cargar el componente.
+📌 4. Solucionar el problema del día adelantado/atrasado
+Si las fechas aparecen un día antes o después, el problema es la zona horaria.
+
+✅ Solución: Crear fechas en UTC
+js
+Copiar
+Editar
+let startDate = new Date(Date.UTC(
+  ...reservation.fecha_entrada.split("-").map((v, i) => (i === 1 ? v - 1 : v))
+));
+
+let endDate = new Date(Date.UTC(
+  ...reservation.fecha_salida.split("-").map((v, i) => (i === 1 ? v - 1 : v))
+));
+🔹 Explicación:
+
+Date.UTC(año, mes, día) crea la fecha sin ajustes de zona horaria.
+Así evitamos que JavaScript adelante o atrase el día por diferencias horarias.
+📌 5. Personalizar la apariencia de fechas deshabilitadas
+Si además de deshabilitar quieres tacharlas y ponerlas en rojo, puedes usar la ranura #date.
+
+✅ Ejemplo - Tachado y rojo en fechas reservadas
+vue
+Copiar
+Editar
+<template>
+  <DatePicker v-model="date" inline>
+    <template #date="slotProps">
+      <span
+        :style="isReserved(slotProps.date) ? 'text-decoration: line-through; color: red' : ''"
+      >
+        {{ slotProps.date.day }}
+      </span>
+    </template>
+  </DatePicker>
+</template>
+
+<script setup>
+import { ref, onMounted } from "vue";
+
+const date = ref(null);
+const reservedDates = ref([]);
+
+// Simulación de datos de la API
+const calendarReserved = [
+  { fecha_entrada: "2025-04-10", fecha_salida: "2025-04-15" },
+  { fecha_entrada: "2025-04-20", fecha_salida: "2025-04-25" }
+];
+
+const generateReservedDates = () => {
+  let allReservedDates = [];
+
+  calendarReserved.forEach(reservation => {
+    let startDate = new Date(Date.UTC(
+      ...reservation.fecha_entrada.split("-").map((v, i) => (i === 1 ? v - 1 : v))
+    ));
+
+    let endDate = new Date(Date.UTC(
+      ...reservation.fecha_salida.split("-").map((v, i) => (i === 1 ? v - 1 : v))
+    ));
+
+    while (startDate <= endDate) {
+      allReservedDates.push(new Date(startDate));
+      startDate.setDate(startDate.getDate() + 1);
+    }
+  });
+
+  reservedDates.value = allReservedDates;
+};
+
+const isReserved = (date) => {
+  return reservedDates.value.some(reservedDate => 
+    reservedDate.getFullYear() === date.year &&
+    reservedDate.getMonth() === date.month &&
+    reservedDate.getDate() === date.day
+  );
+};
+
+onMounted(generateReservedDates);
+</script>
+🔹 Explicación:
+
+Usamos #date="slotProps" para modificar cómo se muestra cada fecha.
+isReserved(slotProps.date) verifica si la fecha está reservada.
+Si es reservada, le agregamos text-decoration: line-through; color: red.
+📌 Conclusión
+✔ Para deshabilitar fechas: Usa :disabledDates="arrayDeFechas".
+✔ Para manejar fechas de API: Convierte "YYYY-MM-DD" a new Date(YYYY, MM-1, DD).
+✔ Para deshabilitar rangos: Recorre desde fecha_entrada hasta fecha_salida.
+✔ Para evitar días incorrectos: Usa Date.UTC().
+✔ Para tachar y poner rojo: Usa #date con estilos personalizados.
